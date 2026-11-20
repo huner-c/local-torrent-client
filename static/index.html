@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101519">
+  <title>Local Torrent</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101519; --card:#161e24; --sink:#11181d; --line:#2a363e; --ink:#eff4f6; --muted:#a3b3be; --green:#76e6bd; --dark-green:#193a31; --warn:#efc880; --red:#ff9a9a; font-family:Inter,"Segoe UI",system-ui,sans-serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:300px; color:var(--ink); background:radial-gradient(ellipse at 64% -25%,#1e2f36 0%,transparent 55%),var(--bg); }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:default; opacity:.5; }
+    button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:2px solid var(--green); outline-offset:3px; }
+    h1,h2,h3,p { margin:0; }
+    [hidden] { display:none!important; }
+    .topbar { border-bottom:1px solid var(--line); background:#101519d9; }
+    .top-inner,.shell { width:min(1440px,100% - 80px); margin:auto; }
+    .top-inner { min-height:69px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand,.top-actions,.connection { display:flex; align-items:center; gap:11px; }
+    .brand { font-weight:730; letter-spacing:-.025em; white-space:nowrap; }
+    .logo { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:var(--green); color:#0c241b; font-size:24px; line-height:1; font-weight:750; }
+    .connection { gap:7px; color:var(--muted); font-size:.83rem; white-space:nowrap; }
+    .connection::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--warn); }
+    .connection.online::before { background:var(--green); box-shadow:0 0 12px #76e6bd79; }
+    .shell { padding:38px 0 60px; }
+    h1 { font-size:clamp(2.3rem,5vw,3.7rem); font-weight:725; line-height:1.04; letter-spacing:-.06em; }
+    .subtitle { color:var(--muted); margin:12px 0 27px; font-size:.96rem; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
+    .metric { background:var(--card); border:1px solid var(--line); min-height:91px; border-radius:13px; padding:15px 17px; }
+    .metric span { display:block; color:var(--muted); font-size:.78rem; }
+    .metric strong { display:block; margin-top:6px; font-size:clamp(1rem,2.3vw,1.65rem); font-weight:680; letter-spacing:-.035em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .metric:first-child strong { color:var(--green); }
+    .layout { display:grid; grid-template-columns:minmax(280px,333px) minmax(0,1fr); gap:18px; align-items:start; }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:15px; }
+    .add-panel { padding:20px; }
+    h2 { font-size:1.06rem; letter-spacing:-.02em; }
+    .form-stack { display:grid; gap:14px; margin-top:18px; }
+    label.field { display:grid; gap:7px; font-size:.83rem; color:#d3e0e6; font-weight:560; }
+    input:not([type=checkbox]):not([type=file]),select { width:100%; background:var(--sink); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:10px 11px; min-height:39px; }
+    input::placeholder { color:#8599a6; }
+    input[type=checkbox] { accent-color:var(--green); width:16px; height:16px; margin:0; vertical-align:middle; flex-shrink:0; }
+    .check { display:flex; align-items:center; gap:8px; font-size:.84rem; color:#d2e0e7; }
+    .button { border:1px solid var(--line); border-radius:8px; padding:8px 11px; background:#1a252d; color:var(--ink); font-size:.82rem; font-weight:620; text-align:center; }
+    .button:hover:not(:disabled) { background:#24343d; border-color:#52717e; }
+    .primary { background:var(--green); border-color:var(--green); color:#10271f; }
+    .primary:hover:not(:disabled) { background:#a0f3d3; border-color:#a0f3d3; }
+    .danger { color:#ffd6d6; background:#3a2427; border-color:#694045; }
+    .danger:hover:not(:disabled) { background:#532c32; border-color:#a65a64; }
+    .dropzone { display:grid; place-items:center; gap:5px; min-height:103px; padding:12px; text-align:center; color:var(--ink); background:var(--sink); border:1px dashed #45606a; border-radius:10px; width:100%; }
+    .dropzone span { font-size:.83rem; font-weight:620; }
+    .dropzone small { color:var(--muted); font-size:.76rem; }
+    .dropzone::before { content:"＋"; color:var(--green); font-size:23px; line-height:1.15; }
+    .dropzone:hover,.dropzone.over { border-color:var(--green); background:#193129; }
+    .queue-head { padding:16px; display:flex; align-items:center; gap:12px; justify-content:space-between; flex-wrap:wrap; }
+    .tabs { display:flex; gap:3px; flex-wrap:wrap; }
+    .tab { background:transparent; border-color:transparent; color:var(--muted); padding:6px 8px; }
+    .tab[aria-pressed="true"] { color:var(--green); background:var(--dark-green); border-color:#305448; }
+    .torrent-list { border-top:1px solid var(--line); }
+    .empty { text-align:center; min-height:219px; display:grid; align-content:center; justify-items:center; gap:9px; padding:24px; }
+    .empty-mark { color:var(--green); background:var(--dark-green); border:1px solid #305448; width:43px; height:43px; display:grid; place-items:center; border-radius:12px; font-size:23px; margin-bottom:3px; }
+    .empty strong { font-size:.94rem; }
+    .empty p,.dim { color:var(--muted); font-size:.82rem; }
+    .torrent { padding:15px 16px; display:grid; gap:10px; }
+    .torrent + .torrent { border-top:1px solid var(--line); }
+    .row-top,.row-bottom,.counter,.row-actions { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+    .row-top,.row-bottom { justify-content:space-between; }
+    .row-top > div:first-child { min-width:0; flex:1; }
+    .row-top h3 { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:.96rem; font-weight:660; }
+    .row-top .path { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:block; margin-top:3px; }
+    .tag { font-size:.72rem; border-radius:18px; padding:4px 8px; background:#27343e; color:#d1e2ef; white-space:nowrap; }
+    .tag[data-state=downloading],.tag[data-state=finished],.tag[data-state=seeding] { color:var(--green); background:var(--dark-green); }
+    .tag[data-state=selecting],.tag[data-state=paused] { color:var(--warn); background:#3c3123; }
+    .tag[data-state=error] { color:var(--red); background:#41282f; }
+    progress { appearance:none; background:#24333c; border:0; border-radius:10px; width:100%; height:6px; }
+    progress::-webkit-progress-bar { background:#24333c; border-radius:10px; }
+    progress::-webkit-progress-value { background:var(--green); border-radius:10px; }
+    progress::-moz-progress-bar { background:var(--green); border-radius:10px; }
+    .counter { color:var(--muted); font-size:.74rem; font-variant-numeric:tabular-nums; }
+    .counter strong { color:var(--ink); font-weight:650; }
+    .row-actions { gap:5px; }
+    .row-actions .button { padding:5px 7px; font-size:.75rem; }
+    .row-error { color:var(--red); font-size:.77rem; overflow-wrap:anywhere; }
+    .warning { color:var(--warn); border:1px solid #614b30; padding:10px 13px; border-radius:9px; font-size:.83rem; margin:0 0 14px; white-space:pre-line; }
+    .notice { position:fixed; right:24px; bottom:22px; max-width:min(450px,100% - 45px); z-index:2; color:var(--ink); background:#263940; border:1px solid #587781; border-radius:10px; padding:12px 14px; box-shadow:0 12px 26px #0005; font-size:.87rem; }
+    .notice[data-error=true] { border-color:#a85d66; background:#432932; }
+    dialog { color:var(--ink); background:var(--card); border:1px solid #3d505b; border-radius:14px; padding:0; width:min(480px,calc(100% - 28px)); max-height:calc(100dvh - 32px); box-shadow:0 20px 80px #0008; }
+    dialog::backdrop { background:#080b0dce; }
+    .wide { width:min(800px,calc(100% - 28px)); }
+    .dialog-body { padding:19px; display:grid; gap:14px; }
+    .dialog-title,.dialog-actions,.file-actions,.rate-field { display:flex; align-items:center; gap:8px; }
+    .dialog-title { justify-content:space-between; min-width:0; }
+    .dialog-title h2 { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dialog-actions { justify-content:flex-end; flex-wrap:wrap; }
+    .file-actions { flex-wrap:wrap; }
+    .file-actions output { margin-left:auto; }
+    .file-tree { border:1px solid var(--line); border-radius:9px; background:var(--sink); padding:8px; overflow:auto; min-height:72px; max-height:min(55dvh,420px); }
+    .branch { padding-left:13px; }
+    .file-row,summary { padding:5px 4px; font-size:.82rem; }
+    summary { cursor:pointer; white-space:nowrap; color:#d7e8ec; }
+    summary input { margin-right:6px!important; }
+    .file-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:7px; }
+    .file-row .file-name { overflow-wrap:anywhere; }
+    .file-row small { color:var(--muted); white-space:nowrap; }
+    .rate-field select { width:auto; }
+    @media (max-width:970px) { .top-inner,.shell { width:calc(100% - 40px); } }
+    @media (max-width:790px) { .layout { grid-template-columns:1fr; } .form-stack { grid-template-columns:minmax(0,1fr) minmax(0,1fr); } .dropzone { grid-row:span 2; } }
+    @media (max-width:510px) { .top-inner,.shell { width:calc(100% - 26px); } .shell { padding-top:26px; } .metrics { grid-template-columns:1fr 1fr; gap:8px; } .metric { min-height:75px; padding:12px; } .form-stack { grid-template-columns:1fr; } .dropzone { grid-row:auto; } .queue-head,.torrent { padding:12px; } .top-actions { gap:7px; } .connection { font-size:.73rem; } }
+    @media (prefers-reduced-motion:no-preference) { .button,.dropzone { transition:background-color .14s,border-color .14s; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-inner">
+      <div class="brand"><span class="logo" aria-hidden="true">↓</span>Local Torrent</div>
+      <div class="top-actions">
+        <span id="connection" class="connection" role="status">Bağlanıyor</span>
+        <button id="settings-button" class="button" type="button">Hız limitleri</button>
+      </div>
+    </div>
+  </header>
+  <main class="shell">
+    <h1>İndirmeler</h1>
+    <p class="subtitle">Torrent dosyaları doğrudan bu bilgisayarın diskine iner.</p>
+    <section class="metrics" aria-label="Oturum istatistikleri">
+      <div class="metric"><span>↓ İndirme hızı</span><strong id="download-rate">0 B/s</strong></div>
+      <div class="metric"><span>↑ Yükleme hızı</span><strong id="upload-rate">0 B/s</strong></div>
+      <div class="metric"><span>Aktif torrent</span><strong id="active-total">0</strong></div>
+      <div class="metric"><span>Tamamlanan</span><strong id="completed-total">0</strong></div>
+    </section>
+    <p id="warning" class="warning" role="status" hidden></p>
+    <div class="layout">
+      <section class="panel add-panel" aria-labelledby="add-title">
+        <h2 id="add-title">Torrent ekle</h2>
+        <form id="magnet-form" class="form-stack">
+          <label class="field">İndirme klasörü
+            <input id="save-path" type="text" maxlength="4096" placeholder="./downloads" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="check"><input id="select-first" type="checkbox"> Önce dosyaları seç</label>
+          <button id="dropzone" class="dropzone" type="button">
+            <span>.torrent dosyası ekle</span><small>Buraya sürükle veya dosya seç</small>
+          </button>
+          <input id="torrent-input" type="file" accept=".torrent,application/x-bittorrent" hidden>
+          <label class="field">Magnet bağlantısı
+            <input id="magnet" type="text" placeholder="magnet:?xt=urn:…" autocomplete="off" spellcheck="false" maxlength="32768" required>
+          </label>
+          <button class="button primary" type="submit">Magnet ekle</button>
+        </form>
+      </section>
+      <section class="panel" aria-labelledby="queue-title">
+        <div class="queue-head">
+          <h2 id="queue-title">Torrentler <span id="total-count" class="dim">0</span></h2>
+          <div class="tabs" aria-label="Torrent filtresi">
+            <button class="button tab" type="button" data-filter="all" aria-pressed="true">Tümü</button>
+            <button class="button tab" type="button" data-filter="active" aria-pressed="false">Aktif</button>
+            <button class="button tab" type="button" data-filter="paused" aria-pressed="false">Duraklatılan</button>
+            <button class="button tab" type="button" data-filter="completed" aria-pressed="false">Tamamlanan</button>
+          </div>
+        </div>
+        <div id="torrent-list" class="torrent-list">
+          <div id="empty" class="empty">
+            <span class="empty-mark" aria-hidden="true">↓</span>
+            <strong id="empty-title">Henüz torrent eklenmedi</strong>
+            <p id="empty-copy">Başlamak için bir .torrent dosyası veya magnet bağlantısı ekle.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <template id="row-template">
+    <article class="torrent">
+      <div class="row-top">
+        <div><h3></h3><span class="path dim"></span></div>
+        <span class="tag"></span>
+      </div>
+      <progress max="100" value="0" aria-label="İndirme ilerlemesi"></progress>
+      <div class="row-bottom">
+        <div class="counter"><strong class="progress-label"></strong><span class="amount"></span><span class="rates"></span><span class="peers"></span><span class="eta"></span></div>
+        <div class="row-actions">
+          <button class="button" type="button" data-action="files">Dosyalar</button>
+          <button class="button" type="button" data-action="pause">Duraklat</button>
+          <button class="button" type="button" data-action="remove">Kaldır</button>
+        </div>
+      </div>
+      <p class="row-error" hidden></p>
+    </article>
+  </template>
+
+  <dialog id="files-dialog" class="wide" aria-labelledby="files-title">
+    <div class="dialog-body">
+      <div class="dialog-title"><h2 id="files-title">Dosyalar</h2><button class="button" data-close type="button">Kapat</button></div>
+      <p id="files-path" class="dim"></p>
+      <div class="file-actions">
+        <button id="select-all" class="button" type="button">Tümünü seç</button>
+        <button id="deselect-all" class="button" type="button">Seçimi temizle</button>
+        <output id="file-count" class="dim"></output>
+      </div>
+      <div id="file-tree" class="file-tree"></div>
+      <p id="files-message" class="row-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="save-selection" class="button primary" type="button">Seçimi uygula</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="remove-dialog" aria-labelledby="remove-title">
+    <div class="dialog-body">
+      <div class="dialog-title"><h2 id="remove-title">Torrent kaldır</h2><button class="button" data-close type="button">Vazgeç</button></div>
+      <p id="remove-name"></p>
+      <p class="dim">Diskten silme seçeneği bu torrente ait indirilmiş dosyaları kalıcı olarak siler.</p>
+      <p id="remove-message" class="row-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="remove-keep" class="button" type="button">Sadece listeden kaldır</button>
+        <button id="remove-delete" class="button danger" type="button">Diskten de sil</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="limits-dialog" aria-labelledby="limits-title">
+    <form id="limits-form" class="dialog-body">
+      <div class="dialog-title"><h2 id="limits-title">Global hız limitleri</h2><button class="button" data-close type="button">Kapat</button></div>
+      <p class="dim">Sınırsız hız için 0 gir.</p>
+      <label class="field" for="limit-down">Maksimum indirme hızı</label>
+      <div class="rate-field"><input id="limit-down" type="number" min="0" step="any" required><select id="unit-down" aria-label="İndirme hızı birimi"><option value="1000000">MB/s</option><option value="1000">KB/s</option></select></div>
+      <label class="field" for="limit-up">Maksimum yükleme hızı</label>
+      <div class="rate-field"><input id="limit-up" type="number" min="0" step="any" required><select id="unit-up" aria-label="Yükleme hızı birimi"><option value="1000000">MB/s</option><option value="1000">KB/s</option></select></div>
+      <p id="limits-message" class="row-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="button primary" type="submit">Limitleri kaydet</button></div>
+    </form>
+  </dialog>
+
+  <div id="notice" class="notice" role="status" hidden></div>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, className) => Object.assign(document.createElement(tag), { className: className || '' });
+    const number = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 });
+    const statuses = {
+      metadata:'Metadata bekliyor', selecting:'Dosya seçimi bekliyor', checking:'Disk kontrolü',
+      downloading:'İndiriliyor', paused:'Duraklatıldı', finished:'Seçim tamamlandı',
+      seeding:'Tamamlandı · Paylaşılıyor', removing:'Kaldırılıyor', error:'Hata'
+    };
+    const active = (item) => ['downloading', 'metadata', 'checking'].includes(item.state);
+    const complete = (item) => ['finished', 'seeding'].includes(item.state) ||
+      (item.paused && item.total_wanted > 0 && item.total_done >= item.total_wanted);
+    const matches = {
+      all: () => true, active, completed: complete, paused: (item) => item.paused
+    };
+    const rows = new Map();
+    let filter = 'all';
+    let torrents = [];
+    let limits = {};
+    let fileSession;
+    let removeKey;
+    let noticeTimer;
+
+    function size(value) {
+      const units = ['B','KiB','MiB','GiB','TiB','PiB'];
+      let index = 0;
+      while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
+      return `${number.format(value)} ${units[index]}`;
+    }
+
+    function duration(seconds) {
+      if (seconds >= 86400) return `${Math.floor(seconds / 86400)} gün ${Math.floor(seconds % 86400 / 3600)} sa`;
+      if (seconds >= 3600) return `${Math.floor(seconds / 3600)} sa ${Math.floor(seconds % 3600 / 60)} dk`;
+      if (seconds >= 60) return `${Math.floor(seconds / 60)} dk ${seconds % 60} sn`;
+      return `${seconds} sn`;
+    }
+
+    function notice(message, error = false) {
+      const target = $('notice');
+      target.textContent = message;
+      target.dataset.error = error;
+      target.hidden = false;
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(() => { target.hidden = true; }, 6600);
+    }
+
+    function showError(target, message = '') {
+      target.textContent = message;
+      target.hidden = !message;
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, options);
+      if (response.status === 204) return null;
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : `İşlem tamamlanamadı (${response.status}).`);
+      return body;
+    }
+
+    function json(method, value) {
+      return { method, headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(value) };
+    }
+
+    const torrentURL = (key) => `/api/torrents/${encodeURIComponent(key)}`;
+
+    function render(snapshot) {
+      torrents = snapshot.torrents;
+      limits = snapshot.limits;
+      $('save-path').placeholder = snapshot.default_save_path;
+      $('download-rate').textContent = `${size(torrents.reduce((sum, item) => sum + item.download_rate, 0))}/s`;
+      $('upload-rate').textContent = `${size(torrents.reduce((sum, item) => sum + item.upload_rate, 0))}/s`;
+      $('active-total').textContent = number.format(torrents.filter(active).length);
+      $('completed-total').textContent = number.format(torrents.filter(complete).length);
+      $('total-count').textContent = number.format(torrents.length);
+      showError($('warning'), snapshot.warnings.join('\n'));
+      renderRows();
+    }
+
+    function createRow() {
+      const node = $('row-template').content.firstElementChild.cloneNode(true);
+      const fields = {};
+      for (const key of ['path','tag','progress-label','amount','rates','peers','eta','row-error']) fields[key] = node.querySelector(`.${key}`);
+      fields.name = node.querySelector('h3');
+      fields.progress = node.querySelector('progress');
+      fields.files = node.querySelector('[data-action=files]');
+      fields.pause = node.querySelector('[data-action=pause]');
+      fields.remove = node.querySelector('[data-action=remove]');
+      return { node, fields };
+    }
+
+    function renderRows() {
+      const visible = torrents.filter(matches[filter]);
+      const present = new Set(visible.map((item) => item.info_hash));
+      for (const [key, row] of rows) {
+        if (!present.has(key)) { row.node.remove(); rows.delete(key); }
+      }
+      let previous = $('empty');
+      for (const item of visible) {
+        const row = rows.get(item.info_hash) || createRow();
+        rows.set(item.info_hash, row);
+        const { node, fields } = row;
+        node.dataset.key = item.info_hash;
+        if (previous.nextElementSibling !== node) previous.after(node);
+        previous = node;
+        fields.name.textContent = fields.name.title = item.name;
+        fields.path.textContent = fields.path.title = item.save_path;
+        fields.tag.textContent = statuses[item.state];
+        fields.tag.dataset.state = item.state;
+        fields.progress.value = item.progress;
+        fields['progress-label'].textContent = `%${number.format(item.progress)}`;
+        fields.amount.textContent = `${size(item.total_done)} / ${size(item.total_wanted)}`;
+        fields.rates.textContent = `↓ ${size(item.download_rate)}/s · ↑ ${size(item.upload_rate)}/s`;
+        fields.peers.textContent = `${item.num_peers} eş · ${item.num_seeds} kaynak`;
+        fields.eta.textContent = item.eta === null ? '' : `Kalan ${duration(item.eta)}`;
+        showError(fields['row-error'], item.error || '');
+        const removing = item.state === 'removing';
+        fields.pause.textContent = item.paused ? 'Devam et' : item.state === 'error' ? 'Yeniden dene' : 'Duraklat';
+        fields.files.disabled = !item.has_metadata || removing;
+        fields.pause.disabled = fields.remove.disabled = removing;
+      }
+      $('empty').hidden = visible.length > 0;
+      $('empty-title').textContent = torrents.length ? 'Bu filtrede torrent yok' : 'Henüz torrent eklenmedi';
+      $('empty-copy').textContent = torrents.length ? 'Tüm torrentleri görmek için Tümü filtresini seç.' : 'Başlamak için bir .torrent dosyası veya magnet bağlantısı ekle.';
+    }
+
+    const refresh = () => api('/api/torrents').then(render).catch(() => {});
+
+    function connect() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+      socket.addEventListener('open', () => {
+        $('connection').classList.add('online');
+        $('connection').textContent = 'Bağlı';
+      });
+      socket.addEventListener('message', (event) => render(JSON.parse(event.data)));
+      socket.addEventListener('close', () => {
+        $('connection').classList.remove('online');
+        $('connection').textContent = 'Yeniden bağlanıyor';
+        setTimeout(connect, 2000);
+      });
+    }
+
+    async function addTorrent(file) {
+      const savePath = $('save-path').value.trim();
+      const selectFirst = $('select-first').checked;
+      try {
+        if (file) {
+          if (!file.name.toLowerCase().endsWith('.torrent')) throw new Error('.torrent uzantılı bir dosya seçin.');
+          const data = new FormData();
+          data.append('file', file);
+          if (savePath) data.append('save_path', savePath);
+          data.append('select_first', String(selectFirst));
+          await api('/api/torrents/upload', { method:'POST', body:data });
+        } else {
+          await api('/api/torrents/magnet', json('POST', { magnet:$('magnet').value.trim(), save_path:savePath || null, select_first:selectFirst }));
+          $('magnet').value = '';
+        }
+        notice('Torrent eklendi.');
+        await refresh();
+      } catch (error) { notice(error.message, true); }
+    }
+
+    function fileTree(files) {
+      const makeBranch = () => ({ children:new Map(), files:[], indices:[] });
+      const root = makeBranch();
+      for (const file of files) {
+        const parts = file.path.split('/');
+        const name = parts.pop();
+        let current = root;
+        for (const part of parts) {
+          if (!current.children.has(part)) current.children.set(part, makeBranch());
+          current = current.children.get(part);
+          current.indices.push(file.index);
+        }
+        current.files.push({ ...file, name });
+      }
+      const leaves = new Map();
+      const folders = [];
+
+      function renderBranch(parent, branch, depth) {
+        for (const [name, group] of branch.children) {
+          const folder = el('details');
+          folder.open = depth === 0;
+          const summary = el('summary');
+          const check = el('input');
+          check.type = 'checkbox';
+          check.setAttribute('aria-label', `${name} klasörü`);
+          check.addEventListener('click', (event) => event.stopPropagation());
+          check.addEventListener('change', () => toggleFiles(group.indices, check.checked));
+          summary.append(check, document.createTextNode(name));
+          const children = el('div', 'branch');
+          folders.push({ check, indices:group.indices });
+          renderBranch(children, group, depth + 1);
+          folder.append(summary, children);
+          parent.append(folder);
+        }
+        for (const file of branch.files) {
+          const label = el('label', 'file-row');
+          const check = el('input');
+          check.type = 'checkbox';
+          check.checked = file.selected;
+          check.addEventListener('change', updateTree);
+          leaves.set(file.index, { check, size:file.size });
+          const name = el('span', 'file-name');
+          name.textContent = file.name;
+          const amount = el('small');
+          amount.textContent = file.done ? `${size(file.done)} / ${size(file.size)}` : size(file.size);
+          label.append(check, name, amount);
+          parent.append(label);
+        }
+      }
+
+      const fragment = document.createDocumentFragment();
+      renderBranch(fragment, root, 0);
+      $('file-tree').replaceChildren(fragment);
+      return { leaves, folders };
+    }
+
+    function toggleFiles(indices, checked) {
+      if (!fileSession) return;
+      for (const index of indices) fileSession.leaves.get(index).check.checked = checked;
+      updateTree();
+    }
+
+    function updateTree() {
+      const { leaves, folders } = fileSession;
+      let count = 0, bytes = 0;
+      for (const item of leaves.values()) if (item.check.checked) { count++; bytes += item.size; }
+      for (const folder of folders) {
+        const selected = folder.indices.filter((index) => leaves.get(index).check.checked).length;
+        folder.check.checked = selected === folder.indices.length;
+        folder.check.indeterminate = selected > 0 && !folder.check.checked;
+      }
+      $('file-count').textContent = `${number.format(count)} dosya · ${size(bytes)}`;
+    }
+
+    async function openFiles(item) {
+      try {
+        const files = await api(`${torrentURL(item.info_hash)}/files`);
+        fileSession = { key:item.info_hash, ...fileTree(files) };
+        $('files-title').textContent = item.name;
+        $('files-path').textContent = item.save_path;
+        showError($('files-message'));
+        updateTree();
+        $('files-dialog').showModal();
+      } catch (error) { notice(error.message, true); }
+    }
+
+    async function saveSelection() {
+      const selected = [...fileSession.leaves].filter(([, file]) => file.check.checked).map(([index]) => index);
+      $('save-selection').disabled = true;
+      try {
+        await api(`${torrentURL(fileSession.key)}/files`, json('PUT', { selected }));
+        $('files-dialog').close();
+        await refresh();
+      } catch (error) { showError($('files-message'), error.message); }
+      finally { $('save-selection').disabled = false; }
+    }
+
+    async function removeTorrent(deleteFiles) {
+      $('remove-keep').disabled = $('remove-delete').disabled = true;
+      showError($('remove-message'));
+      try {
+        await api(`${torrentURL(removeKey)}?delete_files=${deleteFiles}`, { method:'DELETE' });
+        $('remove-dialog').close();
+        notice(deleteFiles ? 'Torrent ve disk dosyaları silindi.' : 'Torrent listeden kaldırıldı.');
+        await refresh();
+      } catch (error) { showError($('remove-message'), error.message); }
+      finally { $('remove-keep').disabled = $('remove-delete').disabled = false; }
+    }
+
+    document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((tab) => tab.setAttribute('aria-pressed', String(tab === button)));
+      filter = button.dataset.filter;
+      renderRows();
+    }));
+
+    document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => button.closest('dialog').close()));
+
+    $('torrent-list').addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const item = torrents.find(({ info_hash }) => info_hash === button.closest('article').dataset.key);
+      if (!item) return;
+      if (button.dataset.action === 'files') { await openFiles(item); return; }
+      if (button.dataset.action === 'remove') {
+        removeKey = item.info_hash;
+        $('remove-name').textContent = item.name;
+        showError($('remove-message'));
+        $('remove-dialog').showModal();
+        return;
+      }
+      const action = item.paused || item.state === 'error' ? 'resume' : 'pause';
+      try { await api(`${torrentURL(item.info_hash)}/${action}`, { method:'POST' }); await refresh(); }
+      catch (error) { notice(error.message, true); }
+    });
+
+    $('dropzone').addEventListener('click', () => $('torrent-input').click());
+    $('torrent-input').addEventListener('change', (event) => {
+      const [file] = event.target.files;
+      if (file) addTorrent(file);
+      event.target.value = '';
+    });
+    document.addEventListener('dragover', (event) => {
+      if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+    });
+    document.addEventListener('drop', (event) => {
+      if (event.dataTransfer.files.length) event.preventDefault();
+    });
+    $('dropzone').addEventListener('dragover', (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      $('dropzone').classList.add('over');
+    });
+    $('dropzone').addEventListener('dragleave', () => $('dropzone').classList.remove('over'));
+    $('dropzone').addEventListener('drop', async (event) => {
+      event.preventDefault();
+      $('dropzone').classList.remove('over');
+      for (const file of [...event.dataTransfer.files]) await addTorrent(file);
+    });
+    $('magnet-form').addEventListener('submit', (event) => { event.preventDefault(); addTorrent(); });
+    $('select-all').addEventListener('click', () => toggleFiles(fileSession.leaves.keys(), true));
+    $('deselect-all').addEventListener('click', () => toggleFiles(fileSession.leaves.keys(), false));
+    $('save-selection').addEventListener('click', saveSelection);
+    $('remove-keep').addEventListener('click', () => removeTorrent(false));
+    $('remove-delete').addEventListener('click', () => removeTorrent(true));
+
+    $('settings-button').addEventListener('click', () => {
+      for (const [side, key] of [['down','download_rate_limit'], ['up','upload_rate_limit']]) {
+        const rate = limits[key] || 0;
+        $('unit-' + side).value = rate >= 1000000 || rate === 0 ? '1000000' : '1000';
+        $('limit-' + side).value = rate / Number($('unit-' + side).value);
+      }
+      showError($('limits-message'));
+      $('limits-dialog').showModal();
+    });
+    $('limits-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const down = Math.round(Number($('limit-down').value) * Number($('unit-down').value));
+      const up = Math.round(Number($('limit-up').value) * Number($('unit-up').value));
+      if (down > 2147483647 || up > 2147483647) {
+        showError($('limits-message'), 'En yüksek limit yaklaşık 2147 MB/s.');
+        return;
+      }
+      try {
+        await api('/api/settings/limits', json('PUT', { download_rate_limit:down, upload_rate_limit:up }));
+        $('limits-dialog').close();
+        notice('Hız limitleri kaydedildi.');
+        await refresh();
+      } catch (error) { showError($('limits-message'), error.message); }
+    });
+
+    refresh();
+    connect();
+  </script>
+</body>
+</html>
